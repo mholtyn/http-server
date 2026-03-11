@@ -5,22 +5,22 @@ HTTP server in Python from scratch: TCP listen, parse request (request line, hea
 **Run**
 
 ```bash
-uv run python main.py --port 4221
+uv run python main.py --port 9999
 ```
 
 Optional directory for serving files:
 
 ```bash
-uv run python main.py --port 4221 --directory ./static
+uv run python main.py --port 9999 --directory ./static
 ```
 
 Then from another terminal:
 
 ```bash
-curl http://127.0.0.1:4221/
+curl http://127.0.0.1:9999/
 ```
 
-**Scope (portfolio)**
+**Scope TBA**
 
 - Bind to port, respond with HTTP 200
 - Parse request (request line, headers, body via Content-Length)
