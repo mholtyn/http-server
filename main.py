@@ -1,25 +1,5 @@
 import socket
-
-
-CRLF = "\r\n"
-
-
-class HTTPRequest:
-    def __init__(self, data: bytes):
-        self.data = data.decode()
-        self.method, self.path, self.protocol = self.data.split(CRLF)[0].split()
-
-
-class HTTPResponse:
-    def __init__(self, status_code: int):
-        self.status_code = status_code
-
-    def __str__(self):
-        STATUS_CODE_PHRASES = {
-            200: "OK",
-            404: "Not Found",
-        }
-        return f"HTTP/1.1 {self.status_code} {STATUS_CODE_PHRASES[self.status_code]}{CRLF}{CRLF}"
+import helpers
 
 
 def main():
@@ -35,19 +15,9 @@ def main():
 
                 # receive data from the client and parse the HTTP req
                 buf: bytearray = client_conn.recv(4096)
-                req = HTTPRequest(buf)
-
-                # make decision based  on the path of the req
-                response = HTTPResponse(200) if req.path == "/" else HTTPResponse(404)
-                """
-                Excepted format:
-                HTTP/1.1 <status_code> <reason phrase> CRLF CRLF
-                request line CRLF +
-                header (empty) CRLF +
-                body (empty)
-                """
+                response = helpers.parse_request(buf)
                 # send response back to the client
-                client_conn.sendall(str(response).encode())
+                client_conn.sendall(response.encode())
 
         except BaseException as e:
             print(f"Error: {e}")
