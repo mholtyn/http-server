@@ -14,8 +14,9 @@ def main():
                 print(f"Connection from {adr} has been established!")
 
                 # receive data from the client and parse the HTTP req
-                buf: bytearray = client_conn.recv(4096)
-                response = helpers.parse_request(buf)
+                buf: bytes = client_conn.recv(4096)
+                method, path, protocol, headers = helpers.parse_request(buf)
+                response = helpers.build_response(method, path, headers)
                 # send response back to the client
                 client_conn.sendall(response.encode())
 
