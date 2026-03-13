@@ -24,8 +24,8 @@ def handle_connection(
         with client_conn:
             print(f"Connection from {client_address} has been established!")
             buf: bytes = client_conn.recv(4096)
-            method, path, protocol, headers = helpers.parse_request(buf)
-            response = helpers.build_response(method, path, headers, directory)
+            method, path, protocol, headers, body = helpers.parse_request(buf)
+            response = helpers.build_response(method, path, headers, directory, body)
             if isinstance(response, bytes):
                 client_conn.sendall(response)
             else:

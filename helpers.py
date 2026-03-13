@@ -32,14 +32,17 @@ body (empty)
 """
 
 
-def parse_request(buf: bytes) -> tuple[str, str, str, dict[str, str]]:
+def parse_request(buf: bytes) -> tuple[str, str, str, dict[str, str], bytes]:
     """
     Parses raw bytes from client request. 
     Returns (method, path, protocol, headers).
     headers: dict with lowercase keys (e.g. headers["user-agent"]).
     """
     data = buf.decode(encoding="utf-8", errors="replace")
-    lines = data.split(CRLF)
+    parts = data.split(CRLF + CRLF, 1)
+    head = parts[0]
+    body = parts[1].encode("utf-8") if len(parts) > 1 else b""
+    lines = head.split(CRLF)
     request_line = lines[0]
     method, path, protocol = request_line.split()
 
@@ -49,7 +52,7 @@ def parse_request(buf: bytes) -> tuple[str, str, str, dict[str, str]]:
             k, v = line.split(":", 1)
             headers[k.lower()] = v.strip()
 
-    return method, path, protocol, headers
+    return method, path, protocol, headers, body
         
 
 def build_response(
@@ -57,6 +60,7 @@ def build_response(
     path: str,
     headers: dict[str, str],
     directory: Path | None = None,
+    body: bytes = b"",
 ) -> str | bytes:
     """Builds full HTTP response string from parsed request."""
     if method == "GET" and path == "/":
@@ -97,5 +101,15 @@ def build_response(
             f"Content-Length: {len(file_bytes)}{CRLF}{CRLF}"
         )
         return header.encode("utf-8") + file_bytes
+    elif method == "POST" and path.startswith(FILES_PREFIX) and directory is not None:
+        filename = path[len(FILES_PREFIX):].lstrip("/")
+        if ".." in filename or "/" in filename:
+            return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
+        file_path = (directory / filename).resolve()
+        try:
+            file_path.write_bytes(body)
+        except OSError:
+            return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
+        return f"HTTP/1.1 201 Created{CRLF}{CRLF}"
     else:
         return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
