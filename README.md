@@ -5,13 +5,13 @@ HTTP server in Python from scratch: TCP listen, parse request (request line, hea
 **Run**
 
 ```bash
-uv run python main.py --port 9999
+uv run python main.py
 ```
 
 Optional directory for serving files:
 
 ```bash
-uv run python main.py --port 9999 --directory ./static
+uv run python main.py --directory static
 ```
 
 Then from another terminal:
