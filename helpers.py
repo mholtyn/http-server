@@ -1,7 +1,9 @@
 import socket
 import time
+from pathlib import Path
 
 CRLF = "\r\n"
+FILES_PREFIX = "/files/"
 
 
 # class HTTPRequest:
@@ -50,7 +52,12 @@ def parse_request(buf: bytes) -> tuple[str, str, str, dict[str, str]]:
     return method, path, protocol, headers
         
 
-def build_response(method: str, path: str, headers: dict[str, str]) -> str:
+def build_response(
+    method: str,
+    path: str,
+    headers: dict[str, str],
+    directory: Path | None = None,
+) -> str | bytes:
     """Builds full HTTP response string from parsed request."""
     if method == "GET" and path == "/":
         # time.sleep(3)
@@ -59,7 +66,7 @@ def build_response(method: str, path: str, headers: dict[str, str]) -> str:
         echo_body = path[6:]
         echo_bytes = echo_body.encode("utf-8")
         return (
-            f"HTTP/1.1 200 OK {CRLF}"
+            f"HTTP/1.1 200 OK{CRLF}"
             f"Content-Type: text/plain{CRLF}"
             f"Content-Length: {len(echo_bytes)}{CRLF}{CRLF}"
             f"{echo_body}"
@@ -68,10 +75,27 @@ def build_response(method: str, path: str, headers: dict[str, str]) -> str:
         user_agent = headers.get("user-agent", "")
         body_bytes = user_agent.encode("utf-8")
         return (
-            f"HTTP/1.1 200 OK {CRLF}"
+            f"HTTP/1.1 200 OK{CRLF}"
             f"Content-Type: text/plain{CRLF}"
             f"Content-Length: {len(body_bytes)}{CRLF}{CRLF}"
             f"{user_agent}"
         )
+    elif method == "GET" and path.startswith(FILES_PREFIX) and directory is not None:
+        filename = path[len(FILES_PREFIX):].lstrip("/")
+        if ".." in filename or "/" in filename:
+            return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
+        file_path = (directory / filename).resolve()
+        try:
+            if not file_path.is_file():
+                return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
+        except OSError:
+            return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
+        file_bytes = file_path.read_bytes()
+        header = (
+            f"HTTP/1.1 200 OK{CRLF}"
+            f"Content-Type: application/octet-stream{CRLF}"
+            f"Content-Length: {len(file_bytes)}{CRLF}{CRLF}"
+        )
+        return header.encode("utf-8") + file_bytes
     else:
-        return f"HTTP/1.1 400 Not Found{CRLF}Not Found."
+        return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
