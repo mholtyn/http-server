@@ -34,8 +34,8 @@ body (empty)
 
 def parse_request(buf: bytes) -> tuple[str, str, str, dict[str, str], bytes]:
     """
-    Parses raw bytes from client request. 
-    Returns (method, path, protocol, headers).
+    Parses raw bytes from client request.
+    Returns (method, path, protocol, headers, body).
     headers: dict with lowercase keys (e.g. headers["user-agent"]).
     """
     data = buf.decode(encoding="utf-8", errors="replace")
@@ -47,13 +47,13 @@ def parse_request(buf: bytes) -> tuple[str, str, str, dict[str, str], bytes]:
     method, path, protocol = request_line.split()
 
     headers: dict[str, str] = {}
-    for line in lines:
+    for line in lines[1:]:
         if ":" in line:
             k, v = line.split(":", 1)
             headers[k.lower()] = v.strip()
 
     return method, path, protocol, headers, body
-        
+
 
 def build_response(
     method: str,
@@ -62,7 +62,7 @@ def build_response(
     directory: Path | None = None,
     body: bytes = b"",
 ) -> str | bytes:
-    """Builds full HTTP response string from parsed request."""
+    """Builds full HTTP response string or bytes from parsed request."""
     if method == "GET" and path == "/":
         # time.sleep(3)
         return f"HTTP/1.1 200 OK{CRLF}{CRLF}Hello, world"
@@ -90,11 +90,13 @@ def build_response(
             return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
         file_path = (directory / filename).resolve()
         try:
-            if not file_path.is_file():
-                return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
-        except OSError:
+            file_bytes = file_path.read_bytes()
+        except FileNotFoundError:
             return f"HTTP/1.1 404 Not Found{CRLF}{CRLF}"
-        file_bytes = file_path.read_bytes()
+        except PermissionError:
+            return f"HTTP/1.1 403 Forbidden{CRLF}{CRLF}"
+        except OSError:
+            return f"HTTP/1.1 500 Internal Server Error{CRLF}{CRLF}"
         header = (
             f"HTTP/1.1 200 OK{CRLF}"
             f"Content-Type: application/octet-stream{CRLF}"

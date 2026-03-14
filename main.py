@@ -8,28 +8,27 @@ import helpers
 
 def parse_argv() -> Path | None:
     """Parses sys.argv for --directory <path>. Returns directory for /files/ or None."""
-    argv = sys.argv[1:]
-    if "--directory" in argv and (index := argv.index("--directory")) + 1 < len(argv):
-        return Path(argv[index + 1])
+    if len(sys.argv) >= 3 and sys.argv[1] == "--directory":
+        return Path(sys.argv[2])
     return None
 
 
 def handle_connection(
-    client_conn: socket.socket,
+    client_socket: socket.socket,
     client_address: tuple,
     directory: Path | None,
 ) -> None:
     """Runs in a separate thread: read request, parse, build response, send, close."""
     try:
-        with client_conn:
-            print(f"Connection from {client_address} has been established!")
-            buf: bytes = client_conn.recv(4096)
+        with client_socket:
+            print(f"Connection from client {client_address} has been established!")
+            buf: bytes = client_socket.recv(4096)
             method, path, protocol, headers, body = helpers.parse_request(buf)
             response = helpers.build_response(method, path, headers, directory, body)
             if isinstance(response, bytes):
-                client_conn.sendall(response)
+                client_socket.sendall(response)
             else:
-                client_conn.sendall(response.encode())
+                client_socket.sendall(response.encode("utf-8"))
     except Exception as error:
         print(f"Error handling {client_address}: {error}")
 
@@ -40,10 +39,10 @@ def main() -> None:
     server_socket = socket.create_server(("localhost", 9999), reuse_port=True)
     while True:
         try:
-            client_conn, client_address = server_socket.accept()
+            client_socket, client_addr = server_socket.accept()
             thread = threading.Thread(
                 target=handle_connection,
-                args=(client_conn, client_address, directory),
+                args=(client_socket, client_addr, directory),
                 daemon=True,
             )
             thread.start()
