@@ -22,13 +22,30 @@ def handle_connection(
     try:
         with client_socket:
             print(f"Connection from client {client_address} has been established!")
-            buf: bytes = client_socket.recv(4096)
-            method, path, protocol, headers, body = helpers.parse_request(buf)
-            response = helpers.build_response(method, path, headers, directory, body)
-            if isinstance(response, bytes):
-                client_socket.sendall(response)
-            else:
-                client_socket.sendall(response.encode("utf-8"))
+            while True:
+                buf: bytes = client_socket.recv(4096)
+                if not buf:
+                    break
+
+                method, path, protocol, headers, body = helpers.parse_request(buf)
+                connection_header_value = headers.get("connection", "").lower()
+                should_close_connection = connection_header_value == "close"
+
+                response = helpers.build_response(
+                    method,
+                    path,
+                    headers,
+                    directory,
+                    body,
+                    should_close_connection,
+                    )
+                if isinstance(response, bytes):
+                    client_socket.sendall(response)
+                else:
+                    client_socket.sendall(response.encode("utf-8"))
+
+                if should_close_connection:
+                    break
     except Exception as error:
         print(f"Error handling {client_address}: {error}")
 
